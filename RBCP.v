@@ -1,60 +1,68 @@
+
 module
 	RBCP(
-		input	wire		CLK_200M,	//in
-		input	wire[ 2:0]	DIP,		//in
-		input	wire		RBCP_WE,	//in
-		input	wire		RBCP_RE,	//in
-		input	wire[ 7:0]	RBCP_WD,	//in
-		input	wire[31:0]	RBCP_ADDR,	//in
-		output	reg	[ 7:0]	RBCP_RD,	//out
-		output	reg			RBCP_ACK	//out
+		input	wire			CLK,	
+		input	wire	[ 2:0]	DIP,		
+		input	wire			RBCP_WE,	
+		input	wire			RBCP_RE,	
+		input	wire	[ 7:0]	RBCP_WD,	
+		input	wire	[31:0]	RBCP_ADDR,	
+		output	reg		[ 7:0]	RBCP_RD,	
+		output	reg				RBCP_ACK	
 	);
+
 	reg		[ 7:0]	x00Reg;
 	reg		[ 7:0]	x01Reg;
 	reg		[ 7:0]	x02Reg;
 	reg		[ 7:0]	x03Reg;
-	//for pipeline
-	reg				P1WE;
 	reg				P0WE;
-	reg				P1RE;
 	reg				P0RE;
-	reg		[15:0]	ADDR_U;//アドレス処理
-	reg		[13:0]	ADDR_D;//アドレス処理
-	reg		[ 1:0]	P0RE_ADDR;//アドレス下位2bit
-	reg		[ 1:0]	P1RE_ADDR;//アドレス下位2bit
-	reg		[ 1:0]	ADDR_RW;//書き込み読み込みアドレス条件
-	reg				WR_ADDR;//ACK返答用
-	always@(posedge CLK_200M )begin
-		//パイプライン化
-		//一段目
-		P0WE			<=	RBCP_WE;
-		P0RE			<=	RBCP_RE;
-		ADDR_U[15:0]	<=	RBCP_ADDR[31:16];
-		ADDR_D[13:0]	<=	RBCP_ADDR[15: 2];
-		P0RE_ADDR[ 1:0]	<=	RBCP_ADDR[ 1: 0];
-		//二段目
-		P1WE			<=	P0WE;
-		P1RE			<=	P0RE;
-		P1RE_ADDR[1:0]	<=	P0RE_ADDR[1:0];
-		ADDR_RW[1]		<=	(ADDR_U[15:0] == 16'd0);
-		ADDR_RW[0]		<=	(ADDR_D[13:0] == 14'd0);
-		//三段目
-		//レジスタへの記述
-		x00Reg[7:0]	<=	{5'd0,DIP[2:0]};//read DIPswitch
-		x01Reg[7:0]	<=	((&ADDR_RW[1:0]) & (P1RE_ADDR[1:0] == 2'd1)& P1WE)?	RBCP_WD[7:0]:x01Reg[7:0];
-		x02Reg[7:0]	<=	((&ADDR_RW[1:0]) & (P1RE_ADDR[1:0] == 2'd2)& P1WE)?	RBCP_WD[7:0]:x02Reg[7:0];
-		x03Reg[7:0]	<=	((&ADDR_RW[1:0]) & (P1RE_ADDR[1:0] == 2'd3)& P1WE)?	RBCP_WD[7:0]:x03Reg[7:0];//write value in reg
+	reg				P1WE;
+	reg				P1RE;
+	reg		[ 7:0]	P0_WD;
+	reg		[ 7:0]	P1_WD;
+	reg		[ 1:0]	P0_ADDR_HI;	// Indicates that RBCP_ADDR[31:16] and RBCP_ADDR[15:2] are 0
+	reg		[ 1:0]	P1_ADDR_HI;
+	reg		[ 1:0]	P0_ADDR_LO;	// RBCP_ADDR lower 2 bits
+	reg				REG00_SEL;
+	reg				REG01_SEL;
+	reg				REG02_SEL;
+	reg				REG03_SEL;
 
-		//レジスタ値読み出し
+	always@(posedge CLK)begin
+		// 1st
+		P0WE			<= RBCP_WE;
+		P0RE			<= RBCP_RE;
+		P0_WD[7:0]		<= RBCP_WD[7:0];
+		P0_ADDR_HI[1]	<= (RBCP_ADDR[31:16] == 16'd0);
+		P0_ADDR_HI[0]	<= (RBCP_ADDR[15: 2] == 14'd0);
+		P0_ADDR_LO[1:0]	<= RBCP_ADDR[1:0];
+		// 2nd
+		P1WE			<= P0WE;
+		P1RE			<= P0RE;
+		P1_WD[7:0]		<= P0_WD[7:0];
+		P1_ADDR_HI[1:0]	<= P0_ADDR_HI[1:0];
+		REG00_SEL		<= (&P0_ADDR_HI[1:0]) & (P0_ADDR_LO[1:0] == 2'b00);
+		REG01_SEL		<= (&P0_ADDR_HI[1:0]) & (P0_ADDR_LO[1:0] == 2'b01);
+		REG02_SEL		<= (&P0_ADDR_HI[1:0]) & (P0_ADDR_LO[1:0] == 2'b10);
+		REG03_SEL		<= (&P0_ADDR_HI[1:0]) & (P0_ADDR_LO[1:0] == 2'b11);
+		// 3rd
+			// Write value to register
+		x00Reg[7:0]	<=	{5'd0,DIP[2:0]}; // read DIPswitch
+		x01Reg[7:0]	<=	P1WE & REG01_SEL?	P1_WD[7:0]:	x01Reg[7:0];
+		x02Reg[7:0]	<=	P1WE & REG02_SEL?	P1_WD[7:0]:	x02Reg[7:0];
+		x03Reg[7:0]	<=	P1WE & REG03_SEL?	P1_WD[7:0]:	x03Reg[7:0];
+			// Read value from register
 		RBCP_RD[ 7:0] 	<=	(
-			(((&ADDR_RW[1:0]) & P1RE_ADDR[1:0] == 2'd0)?	x00Reg[7:0]:8'd0)|
-			(((&ADDR_RW[1:0]) & P1RE_ADDR[1:0] == 2'd1)?	x01Reg[7:0]:8'd0)|
-			(((&ADDR_RW[1:0]) & P1RE_ADDR[1:0] == 2'd2)?	x02Reg[7:0]:8'd0)|
-			(((&ADDR_RW[1:0]) & P1RE_ADDR[1:0] == 2'd3)?	x03Reg[7:0]:8'd0)
+			((P1RE & REG00_SEL)?	x00Reg[7:0]:	8'h00)|
+			((P1RE & REG01_SEL)?	x01Reg[7:0]:	8'h00)|
+			((P1RE & REG02_SEL)?	x02Reg[7:0]:	8'h00)|
+			((P1RE & REG03_SEL)?	x03Reg[7:0]:	8'h00)
 		);
-		//ACK返答
-		RBCP_ACK  	<= 	(&ADDR_RW[1:0]) & (P1RE | P1WE);
+		// ACK reply
+		RBCP_ACK  	<= 	(&P1_ADDR_HI[1:0]) & (P1WE | P1RE);
 	end
+
 endmodule
 
-	
+

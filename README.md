@@ -17,3 +17,22 @@ Simple TCP/IP implemented on an FPGA (Field Programmable Gate Array) for the pur
 * For other related projects, please refer to [here](https://github.com/BeeBeansTechnologies).
 
 ![SiTCP](sitcp.png)
+
+
+## History
+
+#### 2022-06-07 Ver.1.0.1
+
+* "ac701sitcp.v"
+     * Corrected the port name.
+     * Removed push switch input.
+     * Added FIFO for loopback.
+     * Corrected clerical error.
+* "RBCP.v"
+     * Changed the circuit description.
+* "ac701sitcp.xdc"
+     * Corrected the port name.
+
+#### 2018-06-21 Ver.1.0.0
+
+* First release.

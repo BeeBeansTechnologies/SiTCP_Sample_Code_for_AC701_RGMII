@@ -17,3 +17,21 @@ SiTCPの利用するAT93C46のインタフェースをAC701のEEPROM(M24C08)に�
 * その他の関連プロジェクトは、[こちら](https://github.com/BeeBeansTechnologies)を参照してください。
 
 ![SiTCP](sitcp.png)
+
+
+## 履歴
+
+#### 2022-06-07 Ver.1.0.1
+* 「ac701sitcp.v」
+    * ポート名を修正
+    * プッシュスイッチ入力を削除
+    * ループバック用FIFOを追加
+    * 誤記修正
+* 「RBCP.v」
+    * 回路記述を変更
+* 「ac701sitcp.xdc」
+    * ポート名を修正
+
+#### 2018-06-21 Ver.1.0.0
+
+* 新規登録。
